@@ -11,6 +11,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--vars", required=True, type=int, help="The maximum number of variables in an instance.")
 ap.add_argument("-c", "--clauses", required=True, type=int, help="The maximum number of clauses in an instance.")
 ap.add_argument("-l", "--literals", required=True, type=int, help="The maximum number of literals in a clause.")
+ap.add_argument("-k", "--components", required=False, type=int, help="The maximum number of components.", default=10)
 ap.add_argument("-t", "--timeout", required=False, type=int, help="The timeout in minutes.", default=30)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
@@ -21,7 +22,7 @@ ap.add_argument("-P", "--port", required=False, type=int, help="E-mail service S
 args = vars(ap.parse_args())
 
 
-def add_clause(n_vars, max_n_literals, clauses_arr, parent_clause=None):
+def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
     if parent_clause is None:
         parent_clause = []
 
@@ -43,7 +44,7 @@ def add_clause(n_vars, max_n_literals, clauses_arr, parent_clause=None):
         rand_literal = 0
 
         while 1:
-            rand_literal = random.randint(-n_vars - 1, n_vars + 1)
+            rand_literal = random.sample(vars, 1)[0]
             if rand_literal == 0:
                 continue
 
@@ -89,41 +90,61 @@ def to_dimacs_cnf(clauses_arr, n_vars):
     return gen_time, s
 
 
+def get_components(n_vars, n_components):
+    if n_components == 1:
+        return [[*range(-n_vars, n_vars + 1)]]
+    else:
+        components = []
+        split = random.sample(range(n_vars), n_components - 1)
+        split.sort()
+
+        for s in range(len(split) - 1):
+            components.append([*range(split[s], split[s + 1])] + [*range(1 - split[s + 1], 1 - split[s])])
+
+        s = len(split) - 1
+        components.append([*range(split[s], n_vars + 1)] + [*range(-n_vars, 1 - split[s])])
+
+        return components
+
+
 if __name__ == "__main__":
     TEXT = ""
     notif_counter = 0
 
     while 1:
         clauses_arr = []
-        curr_clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
         n_clauses = random.randint(n_vars, args["clauses"])
+        n_components = random.randint(1, args["components"])
+        components = get_components(n_vars, n_components)
 
-        for _ in range(random.randint(1, 1 + math.ceil(n_vars / args["literals"]))):
-            curr_clauses_arr = add_clause(n_vars, args["literals"], curr_clauses_arr)
+        for vars in components:
+            curr_clauses_arr = []
+            for _ in range(random.randint(1, 1 + math.ceil(len(vars) / args["literals"]))):
+                curr_clauses_arr = add_clause(vars, args["literals"], curr_clauses_arr)
 
-        max_clauses = False
-        while 1:
-            temp_clauses_arr = []
+            max_clauses = False
+            while 1:
+                temp_clauses_arr = []
 
-            for c in curr_clauses_arr:
-                d = max_degree(len(c))
-                for _ in range(random.randint(0, d)):
-                    if (len(clauses_arr) + len(curr_clauses_arr) + len(temp_clauses_arr)) < n_clauses:
-                        temp_clauses_arr = add_clause(n_vars, args["literals"], temp_clauses_arr, parent_clause=c)
-                    else:
-                        max_clauses = True
+                for c in curr_clauses_arr:
+                    d = max_degree(len(c))
+                    for _ in range(random.randint(0, d)):
+                        if (len(clauses_arr) + len(curr_clauses_arr) + len(temp_clauses_arr)) < n_clauses:
+                            temp_clauses_arr = add_clause(vars, args["literals"], temp_clauses_arr, parent_clause=c)
+                        else:
+                            max_clauses = True
+                            break
+
+                    if max_clauses:
                         break
 
                 if max_clauses:
+                    clauses_arr = clauses_arr + curr_clauses_arr + temp_clauses_arr
                     break
-
-            if max_clauses:
-                clauses_arr = clauses_arr + curr_clauses_arr + temp_clauses_arr
-                break
-            else:
-                clauses_arr = clauses_arr + curr_clauses_arr
-                curr_clauses_arr = temp_clauses_arr
+                else:
+                    clauses_arr = clauses_arr + curr_clauses_arr
+                    curr_clauses_arr = temp_clauses_arr
 
         gen_time, s = to_dimacs_cnf(clauses_arr, n_vars)
 
@@ -150,7 +171,7 @@ if __name__ == "__main__":
         if args["email"] != "":
             if solved:
                 TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " + str(n_clauses) +\
-                       ", time = " + str(tD) + " seconds\n"
+                       ", n_components = " + str(n_components) + ", time = " + str(tD) + " seconds\n"
 
             if (3600 <= notif_counter) and TEXT != "":
                 TEXT = "SAT instances found! Details:\n\n" + TEXT
