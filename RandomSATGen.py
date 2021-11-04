@@ -30,6 +30,10 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
 
     clause = []
 
+    n_literals = max_n_literals
+    if len(vars) < max_n_literals:
+        n_literals = len(vars)
+
     sampling_size = 0
     if 0 < len(parent_clause):
         sampling_size = random.randint(1, len(parent_clause))
@@ -40,24 +44,27 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
         for s in sampling:
             clause.append(int(s * random.choice([1, -1])))
 
-    for _ in range(random.randint(1, max_n_literals - sampling_size)):
-        rand_literal = 0
+    if sampling_size == 0:
+        clause.append(random.sample(vars, 1)[0])
+        n_literal = n_literals - 1
 
-        while 1:
-            rand_literal = random.sample(vars, 1)[0]
-            if rand_literal == 0:
-                continue
+    if n_literals > sampling_size:
+        n_literals = random.randint(0, n_literals - sampling_size)
+        for _ in range(n_literals):
+            rand_literal = 0
 
             in_clauseQ = False
-            for c in clause:
-                if rand_literal == c or rand_literal == -c:
-                    in_clauseQ = True
-                    break
+            while not in_clauseQ:
+                rand_literal = random.sample(vars, 1)[0]
+                if rand_literal == 0:
+                    continue
 
-            if not in_clauseQ:
-                break
+                for c in clause:
+                    if rand_literal == c or rand_literal == -c:
+                        in_clauseQ = True
+                        break
 
-        clause.append(rand_literal)
+            clause.append(rand_literal)
 
     clauses_arr.append(clause)
 
@@ -95,7 +102,7 @@ def get_components(n_vars, n_components):
         return [[*range(-n_vars, n_vars + 1)]]
     else:
         components = []
-        split = random.sample(range(n_vars), n_components - 1)
+        split = random.sample(range(2, n_vars), n_components - 1)
         split.sort()
 
         components.append([*range(0, split[0])] + [*range(1 - split[0], 0)])
@@ -114,27 +121,32 @@ if __name__ == "__main__":
     notif_counter = 0
 
     while 1:
-        clauses_arr = []
+        full_clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
         n_components = random.randint(1, args["components"])
         components = get_components(n_vars, n_components)
 
-        for vars in components:
+        for variables in components:
+            if variables is []:
+                variables = [-1, 1]
+
+            clauses_arr = []
             n_clauses = random.randint(math.ceil(n_vars / n_components), math.floor(args["clauses"] / n_components))
 
             curr_clauses_arr = []
-            for _ in range(random.randint(1, 1 + math.ceil(len(vars) / args["literals"]))):
-                curr_clauses_arr = add_clause(vars, args["literals"], curr_clauses_arr)
+            n_init_clauses = random.randint(1, 1 + math.ceil(len(variables) / args["literals"]))
+            for _ in range(n_init_clauses):
+                curr_clauses_arr = add_clause(variables, args["literals"], curr_clauses_arr)
 
             max_clauses = False
-            while 1:
+            while not max_clauses:
                 temp_clauses_arr = []
 
                 for c in curr_clauses_arr:
-                    d = max_degree(len(c))
-                    for _ in range(random.randint(0, d)):
+                    d = 1 + random.randint(1, max_degree(len(c)))
+                    for _ in range(d):
                         if (len(clauses_arr) + len(curr_clauses_arr) + len(temp_clauses_arr)) < n_clauses:
-                            temp_clauses_arr = add_clause(vars, args["literals"], temp_clauses_arr, parent_clause=c)
+                            temp_clauses_arr = add_clause(variables, args["literals"], temp_clauses_arr, parent_clause=c)
                         else:
                             max_clauses = True
                             break
@@ -142,14 +154,15 @@ if __name__ == "__main__":
                     if max_clauses:
                         break
 
-                if max_clauses:
-                    clauses_arr = clauses_arr + curr_clauses_arr + temp_clauses_arr
-                    break
-                else:
+                if not max_clauses:
                     clauses_arr = clauses_arr + curr_clauses_arr
                     curr_clauses_arr = temp_clauses_arr
+                else:
+                    clauses_arr = clauses_arr + curr_clauses_arr + temp_clauses_arr
 
-        gen_time, s = to_dimacs_cnf(clauses_arr, n_vars)
+            full_clauses_arr = full_clauses_arr + clauses_arr
+
+        gen_time, s = to_dimacs_cnf(full_clauses_arr, n_vars)
 
         cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
         cnf_file = open(cnf_file_name, "w")
@@ -173,8 +186,9 @@ if __name__ == "__main__":
 
         if args["email"] != "":
             if solved:
-                TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " + str(n_clauses) +\
-                       ", n_components = " + str(n_components) + ", time = " + str(tD) + " seconds\n"
+                TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
+                       + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
+                       " seconds\n"
 
             if (3600 <= notif_counter) and TEXT != "":
                 TEXT = "SAT instances found! Details:\n\n" + TEXT
