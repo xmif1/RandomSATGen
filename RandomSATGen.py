@@ -6,7 +6,6 @@ import datetime
 import argparse
 import subprocess
 
-
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--vars", required=True, type=int, help="The maximum number of variables in an instance.")
 ap.add_argument("-c", "--clauses", required=True, type=int, help="The maximum number of clauses in an instance.")
@@ -46,18 +45,18 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
 
     if sampling_size == 0:
         clause.append(random.sample(vars, 1)[0])
-        n_literal = n_literals - 1
+        n_literals = n_literals - 1
 
     if n_literals > sampling_size:
         n_literals = random.randint(0, n_literals - sampling_size)
         for _ in range(n_literals):
             rand_literal = 0
 
+            i = 0
             in_clauseQ = False
             while not in_clauseQ:
+                i = i + 1
                 rand_literal = random.sample(vars, 1)[0]
-                if rand_literal == 0:
-                    continue
 
                 for c in clause:
                     if rand_literal == c or rand_literal == -c:
@@ -99,13 +98,16 @@ def to_dimacs_cnf(clauses_arr, n_vars):
 
 def get_components(n_vars, n_components):
     if n_components == 1:
-        return [[*range(-n_vars, n_vars + 1)]]
+        variables = [*range(-n_vars, n_vars + 1)]
+        variables.remove(0)
+
+        return [variables]
     else:
         components = []
         split = random.sample(range(2, n_vars), n_components - 1)
         split.sort()
 
-        components.append([*range(0, split[0])] + [*range(1 - split[0], 0)])
+        components.append([*range(1, split[0])] + [*range(1 - split[0], 0)])
 
         for s in range(len(split) - 1):
             components.append([*range(split[s], split[s + 1])] + [*range(1 - split[s + 1], 1 - split[s])])
@@ -164,52 +166,52 @@ if __name__ == "__main__":
 
         gen_time, s = to_dimacs_cnf(full_clauses_arr, n_vars)
 
-        cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
-        cnf_file = open(cnf_file_name, "w")
-        cnf_file.write(s)
-        cnf_file.close()
+        # cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
+        # cnf_file = open(cnf_file_name, "w")
+        # cnf_file.write(s)
+        # cnf_file.close()
+        #
+        # t0 = datetime.datetime.now()
+        # solved = False
+        #
+        # try:
+        #     subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"]*60))
+        #     solved = True
+        # except subprocess.TimeoutExpired:
+        #     os.remove(cnf_file_name)
+        #     os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
+        #
+        # t1 = datetime.datetime.now()
+        #
+        # tD = (t1 - t0).total_seconds()
+        # notif_counter = notif_counter + tD
 
-        t0 = datetime.datetime.now()
-        solved = False
-
-        try:
-            subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"]*60))
-            solved = True
-        except subprocess.TimeoutExpired:
-            os.remove(cnf_file_name)
-            os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
-
-        t1 = datetime.datetime.now()
-
-        tD = (t1 - t0).total_seconds()
-        notif_counter = notif_counter + tD
-
-        if args["email"] != "":
-            if solved:
-                TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
-                       + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
-                       " seconds\n"
-
-            if (3600 <= notif_counter) and TEXT != "":
-                TEXT = "SAT instances found! Details:\n\n" + TEXT
-
-                FROM = args["email"]
-                TO = [args["email"]]
-
-                email_time = datetime.datetime.now()
-                SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
-
-                message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
-                try:
-                    server = smtplib.SMTP(args["smtp"], args["port"])
-                    server.ehlo()
-                    server.starttls()
-                    server.login(args["email"], args["pwd"])
-                    server.sendmail(FROM, TO, message)
-                    server.close()
-
-                    notif_counter = 0
-                    TEXT = ""
-                except Exception:
-                    print("Unable to communicate with mailing service")
-                    exit(1)
+        # if args["email"] != "":
+        #     if solved:
+        #         TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
+        #                + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
+        #                " seconds\n"
+        #
+        #     if (3600 <= notif_counter) and TEXT != "":
+        #         TEXT = "SAT instances found! Details:\n\n" + TEXT
+        #
+        #         FROM = args["email"]
+        #         TO = [args["email"]]
+        #
+        #         email_time = datetime.datetime.now()
+        #         SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
+        #
+        #         message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+        #         try:
+        #             server = smtplib.SMTP(args["smtp"], args["port"])
+        #             server.ehlo()
+        #             server.starttls()
+        #             server.login(args["email"], args["pwd"])
+        #             server.sendmail(FROM, TO, message)
+        #             server.close()
+        #
+        #             notif_counter = 0
+        #             TEXT = ""
+        #         except Exception:
+        #             print("Unable to communicate with mailing service")
+        #             exit(1)
