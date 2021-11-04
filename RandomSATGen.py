@@ -166,52 +166,52 @@ if __name__ == "__main__":
 
         gen_time, s = to_dimacs_cnf(full_clauses_arr, n_vars)
 
-        # cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
-        # cnf_file = open(cnf_file_name, "w")
-        # cnf_file.write(s)
-        # cnf_file.close()
-        #
-        # t0 = datetime.datetime.now()
-        # solved = False
-        #
-        # try:
-        #     subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"]*60))
-        #     solved = True
-        # except subprocess.TimeoutExpired:
-        #     os.remove(cnf_file_name)
-        #     os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
-        #
-        # t1 = datetime.datetime.now()
-        #
-        # tD = (t1 - t0).total_seconds()
-        # notif_counter = notif_counter + tD
+        cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
+        cnf_file = open(cnf_file_name, "w")
+        cnf_file.write(s)
+        cnf_file.close()
 
-        # if args["email"] != "":
-        #     if solved:
-        #         TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
-        #                + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
-        #                " seconds\n"
-        #
-        #     if (3600 <= notif_counter) and TEXT != "":
-        #         TEXT = "SAT instances found! Details:\n\n" + TEXT
-        #
-        #         FROM = args["email"]
-        #         TO = [args["email"]]
-        #
-        #         email_time = datetime.datetime.now()
-        #         SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
-        #
-        #         message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
-        #         try:
-        #             server = smtplib.SMTP(args["smtp"], args["port"])
-        #             server.ehlo()
-        #             server.starttls()
-        #             server.login(args["email"], args["pwd"])
-        #             server.sendmail(FROM, TO, message)
-        #             server.close()
-        #
-        #             notif_counter = 0
-        #             TEXT = ""
-        #         except Exception:
-        #             print("Unable to communicate with mailing service")
-        #             exit(1)
+        t0 = datetime.datetime.now()
+        solved = False
+
+        try:
+            subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"]*60))
+            solved = True
+        except subprocess.TimeoutExpired:
+            os.remove(cnf_file_name)
+            os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
+
+        t1 = datetime.datetime.now()
+
+        tD = (t1 - t0).total_seconds()
+        notif_counter = notif_counter + tD
+
+        if args["email"] != "":
+            if solved:
+                TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
+                       + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
+                       " seconds\n"
+
+            if (3600 <= notif_counter) and TEXT != "":
+                TEXT = "SAT instances found! Details:\n\n" + TEXT
+
+                FROM = args["email"]
+                TO = [args["email"]]
+
+                email_time = datetime.datetime.now()
+                SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
+
+                message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+                try:
+                    server = smtplib.SMTP(args["smtp"], args["port"])
+                    server.ehlo()
+                    server.starttls()
+                    server.login(args["email"], args["pwd"])
+                    server.sendmail(FROM, TO, message)
+                    server.close()
+
+                    notif_counter = 0
+                    TEXT = ""
+                except Exception:
+                    print("Unable to communicate with mailing service")
+                    exit(1)
