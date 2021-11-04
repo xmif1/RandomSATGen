@@ -98,6 +98,8 @@ def get_components(n_vars, n_components):
         split = random.sample(range(n_vars), n_components - 1)
         split.sort()
 
+        components.append([*range(0, split[0])] + [*range(1 - split[0], 0)])
+
         for s in range(len(split) - 1):
             components.append([*range(split[s], split[s + 1])] + [*range(1 - split[s + 1], 1 - split[s])])
 
@@ -114,11 +116,12 @@ if __name__ == "__main__":
     while 1:
         clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
-        n_clauses = random.randint(n_vars, args["clauses"])
         n_components = random.randint(1, args["components"])
         components = get_components(n_vars, n_components)
 
         for vars in components:
+            n_clauses = random.randint(math.ceil(n_vars / n_components), math.floor(args["clauses"] / n_components))
+
             curr_clauses_arr = []
             for _ in range(random.randint(1, 1 + math.ceil(len(vars) / args["literals"]))):
                 curr_clauses_arr = add_clause(vars, args["literals"], curr_clauses_arr)
