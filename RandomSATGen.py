@@ -1,4 +1,5 @@
 import os
+import time
 import math
 import random
 import smtplib
@@ -170,6 +171,8 @@ if __name__ == "__main__":
         cnf_file = open(cnf_file_name, "w")
         cnf_file.write(s)
         cnf_file.close()
+
+        time.sleep(1)
 
         t0 = datetime.datetime.now()
         solved = False
