@@ -22,6 +22,44 @@ ap.add_argument("-P", "--port", required=False, type=int, help="E-mail service S
 args = vars(ap.parse_args())
 
 
+def prune(clauses):
+    pruned_clauses = []
+
+    def dependent(c1, c2):
+        dep_literals = []
+        for l in c1:
+            if (l in c2) or (-l in c2):
+                dep_literals.append(l)
+
+        return dep_literals
+
+    degrees = [0] * len(clauses)
+    for i in range(len(clauses)):
+        pruned_clause = (clauses[i]).copy()
+        dep_clauses = []
+        for j in range(i+1, len(clauses)):
+            dep_literals = dependent(clauses[i], clauses[j])
+            if 0 < len(dep_literals):
+                dep_clauses.append((j, dep_literals))
+                degrees[i] = degrees[i] + 1
+                degrees[j] = degrees[j] + 1
+
+        clause_pruned = False
+        for j, literals in dep_clauses:
+            if math.floor(2**(len(pruned_clause)) - 1) < degrees[i]:
+                if len(literals) < len(clauses[i]):
+                    pruned_clause = list(set(pruned_clause) - set(literals))
+            else:
+                clause_pruned = True
+
+            degrees[j] = degrees[j] - 1
+
+        if clause_pruned:
+            pruned_clauses.append(pruned_clause)
+
+    return pruned_clauses
+
+
 def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
     if parent_clause is None:
         parent_clause = []
@@ -31,8 +69,8 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
     clause = []
 
     n_literals = max_n_literals
-    if len(vars) < max_n_literals:
-        n_literals = len(vars)
+    if (len(vars) / 2) < max_n_literals:
+        n_literals = int(len(vars) / 2)
 
     sampling_size = 0
     if 0 < len(parent_clause):
@@ -54,11 +92,12 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
             rand_literal = 0
 
             i = 0
-            in_clauseQ = False
-            while not in_clauseQ:
+            in_clauseQ = True
+            while in_clauseQ:
                 i = i + 1
                 rand_literal = random.sample(vars, 1)[0]
 
+                in_clauseQ = False
                 for c in clause:
                     if rand_literal == c or rand_literal == -c:
                         in_clauseQ = True
@@ -69,16 +108,6 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
     clauses_arr.append(clause)
 
     return clauses_arr
-
-
-def max_degree(clause_size):
-    d = ((2**clause_size)/math.e) - 1
-    if d <= 0:
-        return 1
-    elif math.log2(d) <= 0:
-        return 1
-    else:
-        return 1 + math.floor(math.log2(d))
 
 
 def to_dimacs_cnf(clauses_arr, n_vars):
@@ -119,6 +148,63 @@ def get_components(n_vars, n_components):
         return components
 
 
+def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_suffix=""):
+    gen_time, s = to_dimacs_cnf(clauses, n_vars)
+
+    cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix + ".cnf"
+    cnf_file = open(cnf_file_name, "w")
+    cnf_file.write(s)
+    cnf_file.close()
+
+    time.sleep(1)
+
+    t0 = datetime.datetime.now()
+    solved = False
+
+    try:
+        subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"] * 60))
+        solved = True
+    except subprocess.TimeoutExpired:
+        os.remove(cnf_file_name)
+        os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
+
+    t1 = datetime.datetime.now()
+
+    tD = (t1 - t0).total_seconds()
+    notif_counter = notif_counter + tD
+
+    if args["email"] != "":
+        if solved:
+            TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
+                   + str(len(clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + \
+                   " seconds\n"
+
+        if (21600 <= notif_counter) and TEXT != "":
+            TEXT = "SAT instances found! Details:\n\n" + TEXT
+
+            FROM = args["email"]
+            TO = [args["email"]]
+
+            email_time = datetime.datetime.now()
+            SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
+
+            message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
+            try:
+                server = smtplib.SMTP(args["smtp"], args["port"])
+                server.ehlo()
+                server.starttls()
+                server.login(args["email"], args["pwd"])
+                server.sendmail(FROM, TO, message)
+                server.close()
+
+                return 0, ""
+            except Exception:
+                print("Unable to communicate with mailing service")
+                exit(1)
+
+    return notif_counter, TEXT
+
+
 if __name__ == "__main__":
     TEXT = ""
     notif_counter = 0
@@ -146,7 +232,7 @@ if __name__ == "__main__":
                 temp_clauses_arr = []
 
                 for c in curr_clauses_arr:
-                    d = 1 + random.randint(1, max_degree(len(c)))
+                    d = random.randint(1, len(c))
                     for _ in range(d):
                         if (len(clauses_arr) + len(curr_clauses_arr) + len(temp_clauses_arr)) < n_clauses:
                             temp_clauses_arr = add_clause(variables, args["literals"], temp_clauses_arr, parent_clause=c)
@@ -165,56 +251,7 @@ if __name__ == "__main__":
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
-        gen_time, s = to_dimacs_cnf(full_clauses_arr, n_vars)
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
 
-        cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".cnf"
-        cnf_file = open(cnf_file_name, "w")
-        cnf_file.write(s)
-        cnf_file.close()
-
-        time.sleep(1)
-
-        t0 = datetime.datetime.now()
-        solved = False
-
-        try:
-            subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"]*60))
-            solved = True
-        except subprocess.TimeoutExpired:
-            os.remove(cnf_file_name)
-            os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
-
-        t1 = datetime.datetime.now()
-
-        tD = (t1 - t0).total_seconds()
-        notif_counter = notif_counter + tD
-
-        if args["email"] != "":
-            if solved:
-                TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
-                       + str(len(full_clauses_arr)) + ", n_components = " + str(n_components) + ", time = " + str(tD) +\
-                       " seconds\n"
-
-            if (3600 <= notif_counter) and TEXT != "":
-                TEXT = "SAT instances found! Details:\n\n" + TEXT
-
-                FROM = args["email"]
-                TO = [args["email"]]
-
-                email_time = datetime.datetime.now()
-                SUBJECT = "RandomSATGen Update (" + email_time.strftime("%d/%m/%Y %H:%M:%S") + ")"
-
-                message = "From: %s\nTo: %s\nSubject: %s\n\n%s" % (FROM, ", ".join(TO), SUBJECT, TEXT)
-                try:
-                    server = smtplib.SMTP(args["smtp"], args["port"])
-                    server.ehlo()
-                    server.starttls()
-                    server.login(args["email"], args["pwd"])
-                    server.sendmail(FROM, TO, message)
-                    server.close()
-
-                    notif_counter = 0
-                    TEXT = ""
-                except Exception:
-                    print("Unable to communicate with mailing service")
-                    exit(1)
+        pruned_clauses = prune(full_clauses_arr)
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
