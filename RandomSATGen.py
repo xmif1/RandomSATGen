@@ -113,15 +113,13 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
 def to_dimacs_cnf(clauses_arr, n_vars):
     gen_time = datetime.datetime.now()
     s = "c RandomSATGen Instance\nc Generated on " + gen_time.strftime("%d/%m/%Y, %H:%M:%S") + "\np cnf " \
-        + str(n_vars) + " " + str(len(clauses_arr))
+        + str(n_vars) + " " + str(len(clauses_arr)) + "\n"
 
     for c in clauses_arr:
-        s = s + "\n"
-
         for l in c:
             s = s + str(l) + " "
 
-        s = s + "0"
+        s = s + "0\n"
 
     return gen_time, s
 
@@ -166,7 +164,7 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
         solved = True
     except subprocess.TimeoutExpired:
         os.remove(cnf_file_name)
-        os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + ".out")
+        os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix + ".out")
 
     t1 = datetime.datetime.now()
 
@@ -179,7 +177,7 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
                    + str(len(clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + \
                    " seconds\n"
 
-        if (21600 <= notif_counter) and TEXT != "":
+        if (14400 <= notif_counter) and TEXT != "":
             TEXT = "SAT instances found! Details:\n\n" + TEXT
 
             FROM = args["email"]
@@ -210,6 +208,8 @@ if __name__ == "__main__":
     notif_counter = 0
 
     while 1:
+        random.seed()
+
         full_clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
         n_components = random.randint(1, args["components"])
