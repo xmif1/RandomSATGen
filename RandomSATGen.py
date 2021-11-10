@@ -220,10 +220,12 @@ if __name__ == "__main__":
                 variables = [-1, 1]
 
             clauses_arr = []
-            n_clauses = random.randint(math.ceil(n_vars / n_components), math.floor(args["clauses"] / n_components))
+            max_n_clauses = min(2 ** (int(len(variables) / 2) - 1), math.floor(args["clauses"] / n_components))
+            min_n_clauses = min(2 ** (int(len(variables) / 2) - 1), math.ceil(n_vars / n_components))
+            n_clauses = random.randint(min_n_clauses, max_n_clauses)
 
             curr_clauses_arr = []
-            n_init_clauses = random.randint(1, 1 + math.ceil(len(variables) / args["literals"]))
+            n_init_clauses = random.randint(1, n_clauses)
             for _ in range(n_init_clauses):
                 curr_clauses_arr = add_clause(variables, args["literals"], curr_clauses_arr)
 
