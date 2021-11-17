@@ -60,52 +60,14 @@ def prune(clauses):
     return pruned_clauses
 
 
-def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
-    if parent_clause is None:
-        parent_clause = []
-
-    clause = []
-
+def add_clause(vars, max_n_literals):
     n_literals = max_n_literals
     if (len(vars) / 2) < max_n_literals:
         n_literals = int(len(vars) / 2)
+    else:
+        n_literals = random.randint(1, n_literals)
 
-    sampling_size = 0
-    if 0 < len(parent_clause):
-        sampling_size = random.randint(1, len(parent_clause))
-        if sampling_size == max_n_literals:
-            sampling_size = sampling_size - 1
-
-        sampling = random.sample(parent_clause, sampling_size)
-        for s in sampling:
-            clause.append(int(s * random.choice([1, -1])))
-
-    if sampling_size == 0:
-        clause.append(random.sample(vars, 1)[0])
-        n_literals = n_literals - 1
-
-    if n_literals > sampling_size:
-        n_literals = random.randint(0, n_literals - sampling_size)
-        for _ in range(n_literals):
-            rand_literal = 0
-
-            i = 0
-            in_clauseQ = True
-            while in_clauseQ:
-                i = i + 1
-                rand_literal = random.sample(vars, 1)[0]
-
-                in_clauseQ = False
-                for c in clause:
-                    if rand_literal == c or rand_literal == -c:
-                        in_clauseQ = True
-                        break
-
-            clause.append(rand_literal)
-
-    clauses_arr.append(clause)
-
-    return clauses_arr
+    return [x * y for x, y in zip(random.sample(vars, n_literals), random.choices([-1, 1], k=n_literals))]
 
 
 def to_dimacs_cnf(clauses_arr, n_vars):
@@ -124,22 +86,19 @@ def to_dimacs_cnf(clauses_arr, n_vars):
 
 def get_components(n_vars, n_components):
     if n_components == 1:
-        variables = [*range(-n_vars, n_vars + 1)]
-        variables.remove(0)
-
-        return [variables]
+        return [range(1, n_vars + 1)]
     else:
         components = []
         split = random.sample(range(2, n_vars), n_components - 1)
         split.sort()
 
-        components.append([*range(1, split[0])] + [*range(1 - split[0], 0)])
+        components.append(range(1, split[0]))
 
         for s in range(len(split) - 1):
-            components.append([*range(split[s], split[s + 1])] + [*range(1 - split[s + 1], 1 - split[s])])
+            components.append(range(split[s], split[s + 1]))
 
         s = len(split) - 1
-        components.append([*range(split[s], n_vars + 1)] + [*range(-n_vars, 1 - split[s])])
+        components.append(range(split[s], n_vars + 1))
 
         return components
 
@@ -214,40 +173,16 @@ if __name__ == "__main__":
         components = get_components(n_vars, n_components)
 
         for variables in components:
-            if variables is []:
-                variables = [-1, 1]
+            if len(variables) == 0:
+                variables = range(1, 2)
 
             clauses_arr = []
-            max_n_clauses = min(2 ** (int(len(variables) / 2) - 1), math.floor(args["clauses"] / n_components))
-            min_n_clauses = min(2 ** (int(len(variables) / 2) - 1), math.ceil(n_vars / n_components))
+            max_n_clauses = min(2 ** (len(variables) - 1), math.floor(args["clauses"] / n_components))
+            min_n_clauses = min(2 ** (len(variables) - 1), math.ceil(n_vars / n_components))
             n_clauses = random.randint(min_n_clauses, max_n_clauses)
 
-            curr_clauses_arr = []
-            n_init_clauses = random.randint(1, n_clauses)
-            for _ in range(n_init_clauses):
-                curr_clauses_arr = add_clause(variables, args["literals"], curr_clauses_arr)
-
-            max_clauses = False
-            while not max_clauses:
-                temp_clauses_arr = []
-
-                for c in curr_clauses_arr:
-                    d = random.randint(1, len(c))
-                    for _ in range(d):
-                        if (len(clauses_arr) + len(curr_clauses_arr) + len(temp_clauses_arr)) < n_clauses:
-                            temp_clauses_arr = add_clause(variables, args["literals"], temp_clauses_arr, parent_clause=c)
-                        else:
-                            max_clauses = True
-                            break
-
-                    if max_clauses:
-                        break
-
-                if not max_clauses:
-                    clauses_arr = clauses_arr + curr_clauses_arr
-                    curr_clauses_arr = temp_clauses_arr
-                else:
-                    clauses_arr = clauses_arr + curr_clauses_arr + temp_clauses_arr
+            for _ in range(n_clauses):
+                clauses_arr.append(add_clause(variables, args["literals"]))
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
