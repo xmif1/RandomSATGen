@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
-#        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
 
-#        pruned_clauses = prune(full_clauses_arr)
-#        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
+        pruned_clauses = prune(full_clauses_arr)
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
