@@ -64,8 +64,6 @@ def add_clause(vars, max_n_literals, clauses_arr, parent_clause=None):
     if parent_clause is None:
         parent_clause = []
 
-    random.seed()
-
     clause = []
 
     n_literals = max_n_literals
@@ -207,9 +205,9 @@ if __name__ == "__main__":
     TEXT = ""
     notif_counter = 0
 
-    while 1:
-        random.seed()
+    random.seed()
 
+    while 1:
         full_clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
         n_components = random.randint(1, args["components"])
@@ -253,7 +251,7 @@ if __name__ == "__main__":
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
-        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
+#        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
 
-        pruned_clauses = prune(full_clauses_arr)
-        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
+#        pruned_clauses = prune(full_clauses_arr)
+#        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
