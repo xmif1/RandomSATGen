@@ -25,37 +25,31 @@ args = vars(ap.parse_args())
 def prune(clauses):
     pruned_clauses = []
 
-    def dependent(c1, c2):
-        dep_literals = []
-        for l in c1:
-            if (l in c2) or (-l in c2):
-                dep_literals.append(l)
-
-        return dep_literals
-
     degrees = [0] * len(clauses)
     for i in range(len(clauses)):
-        pruned_clause = (clauses[i]).copy()
-        dep_clauses = []
+        pruned_clause = (clauses[i][0]).copy()
+
         for j in range(i+1, len(clauses)):
-            dep_literals = dependent(clauses[i], clauses[j])
-            if 0 < len(dep_literals):
-                dep_clauses.append((j, dep_literals))
+            dep_vars = []
+
+            for l in clauses[i][0]:
+                if l in clauses[j][0]:
+                    dep_vars.append(l)
+
+            if 0 < len(dep_vars):
                 degrees[i] = degrees[i] + 1
                 degrees[j] = degrees[j] + 1
 
-        clause_pruned = False
-        for j, literals in dep_clauses:
-            if math.floor(2**(len(pruned_clause)) - 1) < degrees[i]:
-                if len(literals) < len(clauses[i]):
-                    pruned_clause = list(set(pruned_clause) - set(literals))
-            else:
-                clause_pruned = True
+                if math.floor(2 ** (len(pruned_clause)) - 1) < degrees[i]:
+                    if len(dep_vars) < len(pruned_clause):
+                        pruned_clause = list(set(pruned_clause) - set(dep_vars))
+                        degrees[i] = degrees[i] - 1
+                        degrees[j] = degrees[j] - 1
+                    else:
+                        break
 
-            degrees[j] = degrees[j] - 1
-
-        if clause_pruned:
-            pruned_clauses.append(pruned_clause)
+        if degrees[i] <= math.floor(2 ** (len(pruned_clause)) - 1):
+            pruned_clauses.append([pruned_clause, clauses[i][1]])
 
     return pruned_clauses
 
@@ -67,7 +61,7 @@ def add_clause(vars, max_n_literals):
     else:
         n_literals = random.randint(1, n_literals)
 
-    return [x * y for x, y in zip(random.sample(vars, n_literals), random.choices([-1, 1], k=n_literals))]
+    return [random.sample(vars, n_literals), random.choices([-1, 1], k=n_literals)]
 
 
 def to_dimacs_cnf(clauses_arr, n_vars):
@@ -104,7 +98,11 @@ def get_components(n_vars, n_components):
 
 
 def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_suffix=""):
-    gen_time, s = to_dimacs_cnf(clauses, n_vars)
+    signed_clauses = []
+    for clause in clauses:
+        signed_clauses.append([x * y for x, y in zip(clause[0], clause[1])])
+
+    gen_time, s = to_dimacs_cnf(signed_clauses, n_vars)
 
     cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix + ".cnf"
     cnf_file = open(cnf_file_name, "w")
@@ -131,7 +129,7 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
     if args["email"] != "":
         if solved:
             TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
-                   + str(len(clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + \
+                   + str(len(signed_clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + \
                    " seconds\n"
 
         if (14400 <= notif_counter) and TEXT != "":
@@ -186,7 +184,7 @@ if __name__ == "__main__":
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
-        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
+        # notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
 
         pruned_clauses = prune(full_clauses_arr)
         notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
