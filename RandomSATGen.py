@@ -8,11 +8,12 @@ import argparse
 import subprocess
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-v", "--vars", required=True, type=int, help="The maximum number of variables in an instance.")
-ap.add_argument("-c", "--clauses", required=True, type=int, help="The maximum number of clauses in an instance.")
-ap.add_argument("-l", "--literals", required=True, type=int, help="The maximum number of literals in a clause.")
-ap.add_argument("-k", "--components", required=False, type=int, help="The maximum number of components.", default=10)
+ap.add_argument("-n", "--vars", required=True, type=int, help="The maximum number of variables in an instance.")
+# ap.add_argument("-m", "--clauses", required=True, type=int, help="The maximum number of clauses in an instance.")
+ap.add_argument("-k", "--literals", required=True, type=int, help="The number of literals in a clause.")
+# ap.add_argument("-c", "--components", required=False, type=int, help="The maximum number of components.", default=10)
 ap.add_argument("-t", "--timeout", required=False, type=int, help="The timeout in minutes.", default=30)
+ap.add_argument("-b", "--bias", required=False, type=float, help="The bias with which to prune a clause", default=0)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
 ap.add_argument("-e", "--email", required=False, help="E-mail address for notification of instance.", default="")
@@ -22,46 +23,16 @@ ap.add_argument("-P", "--port", required=False, type=int, help="E-mail service S
 args = vars(ap.parse_args())
 
 
-def prune(clauses):
-    pruned_clauses = []
+def add_clause(vars, var_counts, n_literals, max_var_clauses, bias):
+    clauses_vars = random.sample(vars, n_literals)
+    clauses_signs = random.choices([-1, 1], k=n_literals)
 
-    degrees = [0] * len(clauses)
-    for i in range(len(clauses)):
-        pruned_clause = (clauses[i][0]).copy()
+    for v in clauses_vars:
+        var_counts[v-1] = var_counts[v-1] + 1
+        if max_var_clauses < var_counts[v-1] and random.random() < bias:
+            vars.remove(v)
 
-        for j in range(i+1, len(clauses)):
-            dep_vars = []
-
-            for l in clauses[i][0]:
-                if l in clauses[j][0]:
-                    dep_vars.append(l)
-
-            if 0 < len(dep_vars):
-                degrees[i] = degrees[i] + 1
-                degrees[j] = degrees[j] + 1
-
-                if math.floor(2 ** (len(pruned_clause)) - 1) < degrees[i]:
-                    if len(dep_vars) < len(pruned_clause):
-                        pruned_clause = list(set(pruned_clause) - set(dep_vars))
-                        degrees[i] = degrees[i] - 1
-                        degrees[j] = degrees[j] - 1
-                    else:
-                        break
-
-        if degrees[i] <= math.floor(2 ** (len(pruned_clause)) - 1):
-            pruned_clauses.append([pruned_clause, clauses[i][1]])
-
-    return pruned_clauses
-
-
-def add_clause(vars, max_n_literals):
-    n_literals = max_n_literals
-    if (len(vars) / 2) < max_n_literals:
-        n_literals = int(len(vars) / 2)
-    else:
-        n_literals = random.randint(1, n_literals)
-
-    return [random.sample(vars, n_literals), random.choices([-1, 1], k=n_literals)]
+    return [clauses_vars, clauses_signs], vars, var_counts
 
 
 def to_dimacs_cnf(clauses_arr, n_vars):
@@ -80,19 +51,19 @@ def to_dimacs_cnf(clauses_arr, n_vars):
 
 def get_components(n_vars, n_components):
     if n_components == 1:
-        return [range(1, n_vars + 1)]
+        return [list(range(1, n_vars + 1))]
     else:
         components = []
         split = random.sample(range(2, n_vars), n_components - 1)
         split.sort()
 
-        components.append(range(1, split[0]))
+        components.append(list(range(1, split[0])))
 
         for s in range(len(split) - 1):
-            components.append(range(split[s], split[s + 1]))
+            components.append(list(range(split[s], split[s + 1])))
 
         s = len(split) - 1
-        components.append(range(split[s], n_vars + 1))
+        components.append(list(range(split[s], n_vars + 1)))
 
         return components
 
@@ -132,7 +103,7 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
                    + str(len(signed_clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + \
                    " seconds\n"
 
-        if (14400 <= notif_counter) and TEXT != "":
+        if (3600 <= notif_counter) and TEXT != "":
             TEXT = "SAT instances found! Details:\n\n" + TEXT
 
             FROM = args["email"]
@@ -167,24 +138,27 @@ if __name__ == "__main__":
     while 1:
         full_clauses_arr = []
         n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
-        n_components = random.randint(1, args["components"])
-        components = get_components(n_vars, n_components)
+        # n_components = random.randint(1, args["components"])
+        components = get_components(n_vars, 1)
 
         for variables in components:
             if len(variables) == 0:
                 variables = range(1, 2)
+                variables_counts = [0]
+            else:
+                variables_counts = [0] * len(variables)
 
             clauses_arr = []
-            max_n_clauses = min(2 ** (len(variables) - 1), math.floor(args["clauses"] / n_components))
-            min_n_clauses = min(2 ** (len(variables) - 1), math.ceil(n_vars / n_components))
-            n_clauses = random.randint(min_n_clauses, max_n_clauses)
+            max_var_clauses = math.floor(math.pow(2, args["literals"]) / (args["literals"] * math.e))
 
-            for _ in range(n_clauses):
-                clauses_arr.append(add_clause(variables, args["literals"]))
+            n_clauses = 0
+            while args["literals"] < len(variables):
+                n_clauses = n_clauses + 1
+
+                clause, variables, variables_counts = add_clause(variables, variables_counts, args["literals"],
+                                                                 max_var_clauses, args["bias"])
+                clauses_arr.append(clause)
 
             full_clauses_arr = full_clauses_arr + clauses_arr
 
-        # notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, n_components)
-
-        pruned_clauses = prune(full_clauses_arr)
-        notif_counter, TEXT = run_instance(notif_counter, TEXT, pruned_clauses, n_vars, n_components, "__pruned")
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, 1, "__pruned")
