@@ -137,7 +137,8 @@ if __name__ == "__main__":
 
     while 1:
         full_clauses_arr = []
-        n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
+        # n_vars = random.randint(math.floor(args["vars"] / 2), args["vars"])
+        n_vars = args["vars"]
         # n_components = random.randint(1, args["components"])
         components = get_components(n_vars, 1)
 
