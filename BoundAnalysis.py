@@ -23,7 +23,7 @@ if __name__ == "__main__":
         t_arr = []
         m_arr = []
 
-        for b in range(1, 5):
+        for b in range(1, 101):
             mTotal = 0
             tTotal = 0
             n_attempts = 0
