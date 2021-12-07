@@ -60,13 +60,14 @@ if __name__ == "__main__":
                 t0 = datetime.datetime.now()
                 try:
                     subprocess.run([args["solver"], cnf_file_name], timeout=600)
-
-                    n_executions = n_executions + 1
-                    t1 = datetime.datetime.now()
-                    mTotal = mTotal + n_clauses
-                    tTotal = tTotal + (t1 - t0).total_seconds()
                 except subprocess.TimeoutExpired:
                     n_attempts = n_attempts + 1
+
+                t1 = datetime.datetime.now()
+
+                n_executions = n_executions + 1
+                mTotal = mTotal + n_clauses
+                tTotal = tTotal + (t1 - t0).total_seconds()
 
             if n_attempts < 5:
                 b_arr.append(1/b)
