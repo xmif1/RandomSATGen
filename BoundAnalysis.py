@@ -23,7 +23,7 @@ if __name__ == "__main__":
         t_arr = []
         m_arr = []
 
-        for b in range(1, 100):
+        for b in range(1, 5):
             mTotal = 0
             tTotal = 0
             n_attempts = 0
@@ -75,12 +75,12 @@ if __name__ == "__main__":
             else:
                 break
 
-        csv_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
+        csv_name = args["dir"] + "csv/analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
         with open(csv_name, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows([b_arr, t_arr, m_arr])
 
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
         fig.set_canvas(plt.gcf().canvas)
 
         ax1.plot(b_arr, t_arr)
@@ -95,5 +95,8 @@ if __name__ == "__main__":
         ax3.set_xlabel('$m$')
         ax3.set_ylabel('$t$')
 
-        pdf_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k) + ".pdf"
+        fig.set_size_inches(8, 23)
+        plt.tight_layout()
+
+        pdf_name = args["dir"] + "pdf/analysis_n" + str(args["vars"]) + "_k" + str(k) + ".pdf"
         fig.savefig(pdf_name, format='pdf', bbox_inches='tight')
