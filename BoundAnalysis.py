@@ -18,18 +18,18 @@ args = vars(ap.parse_args())
 if __name__ == "__main__":
     random.seed()
 
-    for k in range(3, 9):
+    for k in range(4, 5):
         b_arr = []
         t_arr = []
         m_arr = []
 
-        for b in range(1, 101):
+        b_max = 0
+        for b in range(4, 100, 10):
             mTotal = 0
             tTotal = 0
-            n_attempts = 0
             n_executions = 0
 
-            while n_executions < 10 and n_attempts < 5:
+            while n_executions < 10:
                 variables = list(range(1, args["vars"] + 1))
                 variables_counts = [0] * len(variables)
 
@@ -61,7 +61,8 @@ if __name__ == "__main__":
                 try:
                     subprocess.run([args["solver"], cnf_file_name], timeout=600)
                 except subprocess.TimeoutExpired:
-                    n_attempts = n_attempts + 1
+                    b_max = b
+                    break
 
                 t1 = datetime.datetime.now()
 
@@ -69,8 +70,8 @@ if __name__ == "__main__":
                 mTotal = mTotal + n_clauses
                 tTotal = tTotal + (t1 - t0).total_seconds()
 
-            if n_attempts < 5:
-                b_arr.append(1/b)
+            if b_max == 0:
+                b_arr.append(1 - (1/b))
                 t_arr.append(tTotal / n_executions)
                 m_arr.append(math.floor(mTotal / n_executions))
             else:
@@ -83,16 +84,17 @@ if __name__ == "__main__":
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
         fig.set_canvas(plt.gcf().canvas)
+        fig.suptitle("n = " + str(args["vars"]) + ", k = " + str(k) + ", E = " + str(1 - (1/b_max)))
 
-        ax1.plot(b_arr, t_arr)
+        ax1.scatter(b_arr, t_arr)
         ax1.set_xlabel('$\epsilon$')
         ax1.set_ylabel('$t$')
 
-        ax2.plot(b_arr, m_arr)
+        ax2.scatter(b_arr, m_arr)
         ax2.set_xlabel('$\epsilon$')
         ax2.set_ylabel('$m$')
 
-        ax3.plot(m_arr, t_arr)
+        ax3.scatter(m_arr, t_arr)
         ax3.set_xlabel('$m$')
         ax3.set_ylabel('$t$')
 
