@@ -18,13 +18,13 @@ args = vars(ap.parse_args())
 if __name__ == "__main__":
     random.seed()
 
-    for k in range(4, 5):
+    for k in range(3, 10):
         b_arr = []
         t_arr = []
         m_arr = []
 
         b_max = 0
-        for b in range(4, 100, 10):
+        for b in range(4, 104):
             mTotal = 0
             tTotal = 0
             n_executions = 0
