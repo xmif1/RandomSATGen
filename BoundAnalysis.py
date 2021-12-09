@@ -84,7 +84,13 @@ if __name__ == "__main__":
 
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
         fig.set_canvas(plt.gcf().canvas)
-        fig.suptitle("n = " + str(args["vars"]) + ", k = " + str(k) + ", E = " + str(1 - (1/b_max)))
+
+        if b_max != 0:
+            E = 1 - (1/b_max)
+        else:
+            E = 1 - (1/105)
+
+        fig.suptitle("n = " + str(args["vars"]) + ", k = " + str(k) + ", E = " + str(E))
 
         ax1.scatter(b_arr, t_arr)
         ax1.set_xlabel('$\epsilon$')
