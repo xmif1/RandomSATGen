@@ -1,10 +1,14 @@
+import math
 import random
 import datetime
 
 
-def add_clause(vars, var_counts, n_literals, max_var_clauses, bias):
-    clauses_vars = random.sample(vars, n_literals)
-    clauses_signs = random.choices([-1, 1], k=n_literals)
+def add_clause(vars, var_counts, k_min, k_max, bias):
+    cK = random.sample(range(k_min, k_max + 1), 1)[0]
+    clauses_vars = random.sample(vars, cK)
+    clauses_signs = random.choices([-1, 1], k=cK)
+
+    max_var_clauses = math.floor(math.pow(2, cK) / (cK * math.e))
 
     for v in clauses_vars:
         var_counts[v-1] = var_counts[v-1] + 1

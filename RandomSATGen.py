@@ -107,14 +107,13 @@ if __name__ == "__main__":
                 variables_counts = [0] * len(variables)
 
             clauses_arr = []
-            max_var_clauses = math.floor(math.pow(2, args["literals"]) / (args["literals"] * math.e))
 
             n_clauses = 0
             while args["literals"] < len(variables):
                 n_clauses = n_clauses + 1
 
                 clause, variables, variables_counts = add_clause(variables, variables_counts, args["literals"],
-                                                                 max_var_clauses, 1.0 / args["bias"])
+                                                                 args["literals"], 1.0 / args["bias"])
                 clauses_arr.append(clause)
 
             full_clauses_arr = full_clauses_arr + clauses_arr
