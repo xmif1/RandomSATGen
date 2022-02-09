@@ -3,6 +3,7 @@ import numpy as np
 from core.CoreUtils import add_clause, to_dimacs_cnf
 from matplotlib import pyplot as plt
 
+import os
 import csv
 import math
 import time
@@ -21,6 +22,7 @@ ap.add_argument("-N", "--samples", required=False, type=int,
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
 ap.add_argument("-o", "--opts", required=False, default="", help="Command line arguments to solver")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
+ap.add_argument("-t", "--timeout", required=False, type=int, help="Timeout in seconds.", default=10)
 args = vars(ap.parse_args())
 
 if __name__ == "__main__":
@@ -62,14 +64,19 @@ if __name__ == "__main__":
                 time.sleep(1)
 
                 t0 = datetime.datetime.now()
+
                 try:
                     solver = [args["solver"]] + args["opts"].split() + [cnf_file_name]
-                    subprocess.run(solver, timeout=300)
+                    subprocess.run(solver, timeout=args["timeout"])
                 except subprocess.TimeoutExpired:
+                    os.remove(cnf_file_name)
+
                     b_max = b
                     break
 
                 t1 = datetime.datetime.now()
+
+                os.remove(cnf_file_name)
 
                 n_executions = n_executions + 1
                 mTotal = mTotal + n_clauses
@@ -92,8 +99,7 @@ if __name__ == "__main__":
         else:
             E = 1 - (1 / args["samples"])
 
-        ttl = "n = " + str(args["vars"]) + ", k_min = " + str(k) + ", k_max = " + str(args["k_max"]) + \
-              ", $\epsilon_{\mathrm{max}}$ = " + str(E)
+        ttl = "n = " + str(args["vars"]) + ", k = " + str(k) + ", $\epsilon_{\mathrm{max}}$ = " + str(E)
 
         fig1, (ax1) = plt.subplots(1, 1)
         fig1.set_canvas(plt.gcf().canvas)
