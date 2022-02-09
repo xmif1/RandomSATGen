@@ -34,12 +34,12 @@ if __name__ == "__main__":
         m_arr = []
 
         b_max = 0
-        for b in np.linspace(1, 0, args["samples"], endpoint=False):
+        for b in np.geomspace(1, 1/args["samples"], args["samples"]):
             mTotal = 0
             tTotal = 0
             n_executions = 0
 
-            while n_executions < 25:
+            while n_executions < 10:
                 variables = list(range(1, args["vars"] + 1))
                 variables_counts = [0] * len(variables)
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
                 tTotal = tTotal + (t1 - t0).total_seconds()
 
             if b_max == 0:
-                b_arr.append(b)
+                b_arr.append(1 - b)
                 t_arr.append(tTotal / n_executions)
                 m_arr.append(math.floor(mTotal / n_executions))
             else:
@@ -87,8 +87,13 @@ if __name__ == "__main__":
             writer = csv.writer(f)
             writer.writerows([b_arr, t_arr, m_arr])
 
+        if b_max != 0:
+            E = 1 - b_max
+        else:
+            E = 1 - (1 / args["samples"])
+
         ttl = "n = " + str(args["vars"]) + ", k_min = " + str(k) + ", k_max = " + str(args["k_max"]) + \
-              ", $\epsilon_{\mathrm{max}}$ = " + str(b_max)
+              ", $\epsilon_{\mathrm{max}}$ = " + str(E)
 
         fig1, (ax1) = plt.subplots(1, 1)
         fig1.set_canvas(plt.gcf().canvas)
