@@ -89,7 +89,7 @@ if __name__ == "__main__":
             else:
                 break
 
-        csv_name = args["dir"] + "csv/analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
+        csv_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
         with open(csv_name, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows([b_arr, t_arr, m_arr])
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         fig3.set_size_inches(9, 6)
         plt.tight_layout()
 
-        pdf_name = args["dir"] + "pdf/analysis_n" + str(args["vars"]) + "_k" + str(k)
+        pdf_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k)
         fig1.savefig(pdf_name + "_1.pdf", format='pdf', bbox_inches='tight')
         fig2.savefig(pdf_name + "_2.pdf", format='pdf', bbox_inches='tight')
         fig3.savefig(pdf_name + "_3.pdf", format='pdf', bbox_inches='tight')
