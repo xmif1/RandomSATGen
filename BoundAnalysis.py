@@ -1,3 +1,5 @@
+import numpy as np
+
 from core.CoreUtils import add_clause, to_dimacs_cnf
 from matplotlib import pyplot as plt
 
@@ -13,7 +15,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-n", "--vars", required=True, type=int, help="The maximum number of variables in an instance.")
 ap.add_argument("-k1", "--k-min", required=True, type=int, help="The minimum value of k.")
 ap.add_argument("-k2", "--k-max", required=True, type=int, help="The maximum value of k.")
+ap.add_argument("-r", "--resamples", required=False, type=int, help="The maximum number of resamples.", default=10000)
+ap.add_argument("-N", "--samples", required=False, type=int,
+                help="The number of samples equally spaced samples between 0 and 1.", default=100)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
+ap.add_argument("-o", "--opts", required=False, default="", help="Command line arguments to solver")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
 args = vars(ap.parse_args())
 
@@ -21,12 +27,14 @@ if __name__ == "__main__":
     random.seed()
 
     for k in range(args["k_min"], args["k_max"] + 1):
+        max_var_clauses = math.floor(math.pow(2, k) / (k * math.e))
+
         b_arr = []
         t_arr = []
         m_arr = []
 
         b_max = 0
-        for b in range(4, 105):
+        for b in np.linspace(1, 0, args["samples"], endpoint=False):
             mTotal = 0
             tTotal = 0
             n_executions = 0
@@ -35,32 +43,28 @@ if __name__ == "__main__":
                 variables = list(range(1, args["vars"] + 1))
                 variables_counts = [0] * len(variables)
 
-                clauses_arr = []
+                clauses_arr = set([])
 
                 n_clauses = 0
-                while args["k_max"] < len(variables):
+                while k < len(variables):
                     n_clauses = n_clauses + 1
 
-                    clause, variables, variables_counts = add_clause(variables, variables_counts, k, args["k_max"],
-                                                                     1.0 / b)
-                    clauses_arr.append(clause)
+                    clause, variables, variables_counts, failed = add_clause(variables, variables_counts, k,
+                                                                             max_var_clauses, b, clauses_arr,
+                                                                             args["resamples"])
+                    if not failed:
+                        clauses_arr.add(clause)
+                    else:
+                        break
 
-                signed_clauses = []
-                for clause in clauses_arr:
-                    signed_clauses.append([x * y for x, y in zip(clause[0], clause[1])])
-
-                gen_time, s = to_dimacs_cnf(signed_clauses, args["vars"])
-
-                cnf_file_name = args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + "_analysis.cnf"
-                cnf_file = open(cnf_file_name, "w")
-                cnf_file.write(s)
-                cnf_file.close()
+                cnf_file_name, gen_time = to_dimacs_cnf(clauses_arr, args["vars"], args["dir"], "_analysis")
 
                 time.sleep(1)
 
                 t0 = datetime.datetime.now()
                 try:
-                    subprocess.run([args["solver"], cnf_file_name], timeout=300)
+                    solver = [args["solver"]] + args["opts"].split() + [cnf_file_name]
+                    subprocess.run(solver, timeout=300)
                 except subprocess.TimeoutExpired:
                     b_max = b
                     break
@@ -72,7 +76,7 @@ if __name__ == "__main__":
                 tTotal = tTotal + (t1 - t0).total_seconds()
 
             if b_max == 0:
-                b_arr.append(1 - (1/b))
+                b_arr.append(b)
                 t_arr.append(tTotal / n_executions)
                 m_arr.append(math.floor(mTotal / n_executions))
             else:
@@ -83,12 +87,8 @@ if __name__ == "__main__":
             writer = csv.writer(f)
             writer.writerows([b_arr, t_arr, m_arr])
 
-        if b_max != 0:
-            E = 1 - (1/b_max)
-        else:
-            E = 1 - (1/105)
-
-        ttl = "n = " + str(args["vars"]) + ", k_min = " + str(k) + ", k_max = " + str(args["k_max"]) + ", E = " + str(E)
+        ttl = "n = " + str(args["vars"]) + ", k_min = " + str(k) + ", k_max = " + str(args["k_max"]) + \
+              ", $\epsilon_{\mathrm{max}}$ = " + str(b_max)
 
         fig1, (ax1) = plt.subplots(1, 1)
         fig1.set_canvas(plt.gcf().canvas)

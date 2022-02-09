@@ -51,22 +51,3 @@ def to_dimacs_cnf(clauses_arr, n_vars, dir, file_name_suffix):
     cnf_file.close()
 
     return cnf_file_name, gen_time
-
-
-def get_components(n_vars, n_components):
-    if n_components == 1:
-        return [list(range(1, n_vars + 1))]
-    else:
-        components = []
-        split = random.sample(range(2, n_vars), n_components - 1)
-        split.sort()
-
-        components.append(list(range(1, split[0])))
-
-        for s in range(len(split) - 1):
-            components.append(list(range(split[s], split[s + 1])))
-
-        s = len(split) - 1
-        components.append(list(range(split[s], n_vars + 1)))
-
-        return components

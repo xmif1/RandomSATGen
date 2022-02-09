@@ -1,4 +1,4 @@
-from core.CoreUtils import add_clause, to_dimacs_cnf, get_components
+from core.CoreUtils import add_clause, to_dimacs_cnf
 
 import os
 import time
@@ -16,6 +16,7 @@ ap.add_argument("-t", "--timeout", required=False, type=int, help="The timeout i
 ap.add_argument("-b", "--bias", required=False, type=float, help="The bias with which to prune a clause", default=0)
 ap.add_argument("-r", "--resamples", required=False, type=int, help="The maximum number of resamples.", default=10000)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
+ap.add_argument("-o", "--opts", required=False, default="", help="Command line arguments to solver")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
 ap.add_argument("-e", "--email", required=False, help="E-mail address for notification of instance.", default="")
 ap.add_argument("-p", "--pwd", required=False, help="Password for given E-mail address", default="")
@@ -24,8 +25,7 @@ ap.add_argument("-P", "--port", required=False, type=int, help="E-mail service S
 args = vars(ap.parse_args())
 
 
-def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_suffix=""):
-
+def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
     print("Writing SAT instance to file...")
     cnf_file_name, gen_time = to_dimacs_cnf(clauses, n_vars, args["dir"], file_name_suffix)
 
@@ -36,7 +36,8 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
 
     print("Running SAT instance...")
     try:
-        subprocess.run([args["solver"], cnf_file_name], timeout=(args["timeout"] * 60))
+        solver = [args["solver"]] + args["opts"].split() + [cnf_file_name]
+        subprocess.run(solver, timeout=(args["timeout"] * 60))
         solved = True
     except subprocess.TimeoutExpired:
         print("SAT solver timed out...")
@@ -50,8 +51,8 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, n_components, file_name_s
 
     if args["email"] != "":
         if solved:
-            TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " \
-                   + str(len(clauses)) + ", n_components = " + str(n_components) + ", time = " + str(tD) + " seconds\n"
+            TEXT = TEXT + cnf_file_name + " : n_vars = " + str(n_vars) + ", n_clauses = " + str(len(clauses)) +\
+                   ", time = " + str(tD) + " seconds\n"
 
         if (3600 <= notif_counter) and TEXT != "":
             TEXT = "SAT instances found! Details:\n\n" + TEXT
@@ -84,41 +85,29 @@ if __name__ == "__main__":
     notif_counter = 0
 
     random.seed()
+    n_vars = args["vars"]
 
     while 1:
-        print("Generating SAT instance...")
+        print("====================================================\nGenerating SAT instance...")
 
-        full_clauses_arr = set([])
-        n_vars = args["vars"]
-        components = get_components(n_vars, 1)
+        variables = list(range(1, n_vars + 1))
+        variables_counts = [0] * len(variables)
 
-        for variables in components:
-            if len(variables) == 0:
-                variables = range(1, 2)
-                variables_counts = [0]
+        clauses_arr = set([])
+
+        n_clauses = 0
+        max_var_clauses = math.floor(math.pow(2, args["literals"]) / (args["literals"] * math.e))
+        bias = 1.0 / args["bias"]
+
+        while args["literals"] < len(variables):
+            n_clauses = n_clauses + 1
+
+            clause, variables, variables_counts, failed = add_clause(variables, variables_counts, args["literals"],
+                                                                     max_var_clauses, bias, clauses_arr,
+                                                                     args["resamples"])
+            if not failed:
+                clauses_arr.add(clause)
             else:
-                variables_counts = [0] * len(variables)
+                break
 
-            clauses_arr = set([])
-
-            n_clauses = 0
-            max_var_clauses = math.floor(math.pow(2, args["literals"]) / (args["literals"] * math.e))
-            bias = 1.0 / args["bias"]
-
-            while args["literals"] < len(variables):
-                n_clauses = n_clauses + 1
-
-                clause, variables, variables_counts, failed = add_clause(variables, variables_counts, args["literals"],
-                                                                         max_var_clauses, bias, clauses_arr,
-                                                                         args["resamples"])
-                if not failed:
-                    clauses_arr.add(clause)
-
-                    if (len(clauses_arr) % 100000) == 0:
-                        print("# clauses added = " + str(len(clauses_arr)))
-                else:
-                    break
-
-            full_clauses_arr = full_clauses_arr.union(clauses_arr)
-
-        notif_counter, TEXT = run_instance(notif_counter, TEXT, full_clauses_arr, n_vars, 1, "__pruned")
+        notif_counter, TEXT = run_instance(notif_counter, TEXT, clauses_arr, n_vars)
