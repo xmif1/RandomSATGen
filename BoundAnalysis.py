@@ -34,11 +34,13 @@ if __name__ == "__main__":
         b_arr = []
         t_arr = []
         m_arr = []
+        v_arr = []
 
         b_max = 0
         for b in np.geomspace(1, 1/args["samples"], args["samples"]):
             mTotal = 0
             tTotal = 0
+            vTotal = 0
             n_executions = 0
 
             while n_executions < 10:
@@ -81,18 +83,20 @@ if __name__ == "__main__":
                 n_executions = n_executions + 1
                 mTotal = mTotal + n_clauses
                 tTotal = tTotal + (t1 - t0).total_seconds()
+                vTotal = vTotal + np.average(variables_counts)
 
             if b_max == 0:
                 b_arr.append(1 - b)
                 t_arr.append(tTotal / n_executions)
                 m_arr.append(math.floor(mTotal / n_executions))
+                v_arr.append(vTotal / n_executions)
             else:
                 break
 
         csv_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
         with open(csv_name, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerows([b_arr, t_arr, m_arr])
+            writer.writerows([b_arr, t_arr, m_arr, v_arr])
 
         if b_max != 0:
             E = 1 - b_max
@@ -121,9 +125,9 @@ if __name__ == "__main__":
         fig3.set_canvas(plt.gcf().canvas)
         fig3.suptitle(ttl)
 
-        ax3.scatter(m_arr, t_arr)
-        ax3.set_xlabel('$m$')
-        ax3.set_ylabel('$t$')
+        ax3.scatter(b_arr, v_arr)
+        ax3.set_xlabel('$\epsilon$')
+        ax3.set_ylabel('$|\Gamma (c)|$')
 
         fig1.set_size_inches(9, 6)
         fig2.set_size_inches(9, 6)
