@@ -32,8 +32,8 @@ def add_clause(vars, var_counts, k, max_var_clauses, bias, clauses_arr, max_trie
 
 def to_dimacs_cnf(clauses_arr, n_vars, dir, file_name_suffix):
     gen_time = datetime.datetime.now()
-    cnf_file_name = dir + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix + ".cnf"
-    cnf_file = open(cnf_file_name, 'a')
+    cnf_file_name = dir + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix
+    cnf_file = open(cnf_file_name + ".cnf", 'a')
 
     s = "c RandomSATGen Instance\nc Generated on " + gen_time.strftime("%d/%m/%Y, %H:%M:%S") + "\np cnf " \
         + str(n_vars) + " " + str(len(clauses_arr)) + "\n"
@@ -50,4 +50,4 @@ def to_dimacs_cnf(clauses_arr, n_vars, dir, file_name_suffix):
 
     cnf_file.close()
 
-    return cnf_file_name, gen_time
+    return cnf_file_name

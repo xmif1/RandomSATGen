@@ -14,7 +14,8 @@ ap.add_argument("-n", "--vars", required=True, type=int, help="The maximum numbe
 ap.add_argument("-k", "--literals", required=True, type=int, help="The number of literals in a clause.")
 ap.add_argument("-t", "--timeout", required=False, type=int, help="The timeout in minutes.", default=30)
 ap.add_argument("-b", "--bias", required=False, type=float, help="The bias with which to prune a clause", default=0)
-ap.add_argument("-r", "--resamples", required=False, type=int, help="The maximum number of resamples.", default=10000)
+ap.add_argument("-c", "--cutoff", required=False, type=int, help="The maximum number of clause generation resamples.",
+                default=10000)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
 ap.add_argument("-o", "--opts", required=False, default="", help="Command line arguments to solver")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
@@ -27,7 +28,7 @@ args = vars(ap.parse_args())
 
 def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
     print("Writing SAT instance to file...")
-    cnf_file_name, gen_time = to_dimacs_cnf(clauses, n_vars, args["dir"], file_name_suffix)
+    cnf_file_name = to_dimacs_cnf(clauses, n_vars, args["dir"], file_name_suffix)
 
     time.sleep(1)
 
@@ -36,13 +37,13 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
 
     print("Running SAT instance...")
     try:
-        solver = [args["solver"]] + args["opts"].split() + [cnf_file_name]
+        solver = [args["solver"]] + args["opts"].split() + [cnf_file_name + ".cnf"]
         subprocess.run(solver, timeout=(args["timeout"] * 60))
         solved = True
     except subprocess.TimeoutExpired:
         print("SAT solver timed out...")
-        os.remove(cnf_file_name)
-        os.remove(args["dir"] + "rand_cnf_" + gen_time.strftime("%d_%m_%Y_%H_%M_%S") + file_name_suffix + ".out")
+        os.remove(cnf_file_name + ".cnf")
+        os.remove(cnf_file_name + ".out")
 
     t1 = datetime.datetime.now()
 
@@ -104,7 +105,7 @@ if __name__ == "__main__":
 
             clause, variables, variables_counts, failed = add_clause(variables, variables_counts, args["literals"],
                                                                      max_var_clauses, bias, clauses_arr,
-                                                                     args["resamples"])
+                                                                     args["cutoff"])
             if not failed:
                 clauses_arr.add(clause)
             else:
