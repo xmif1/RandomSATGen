@@ -23,7 +23,7 @@ ap.add_argument("-c", "--cutoff", required=False, type=int, help="The maximum nu
 ap.add_argument("-N", "--samples", required=False, type=int,
                 help="The number of samples equally spaced samples between 0 and 1.", default=100)
 ap.add_argument("-s", "--solver", required=True, help="Path to a solver instance accepting a DIMACS CNF file as input.")
-ap.add_argument("-o", "--opts", required=False, default="", help="Command line arguments to solver")
+ap.add_argument("-p", "--threads", required=True, type=int, default=2, help="Number of threads of use")
 ap.add_argument("-d", "--dir", required=True, help="Path to directory where to save CNF files.")
 ap.add_argument("-t", "--timeout", required=False, type=int, help="Timeout in seconds.", default=30)
 args = vars(ap.parse_args())
@@ -35,15 +35,15 @@ if __name__ == "__main__":
         max_var_clauses = math.floor(math.pow(2, k) / (k * math.e))
 
         b_arr = []
-        t_arr = []
+        ts_arr = []
+        tp_arr = []
         m_arr = []
-        i_arr = []
 
         b_max = 0
         for b in np.geomspace(1, 1/args["samples"], args["samples"]):
             mTotal = 0
-            tTotal = 0
-            iTotal = 0
+            tsTotal = 0
+            tpTotal = 0
             n_executions = 0
 
             while n_executions < 10:
@@ -68,7 +68,7 @@ if __name__ == "__main__":
                 time.sleep(1)
 
                 try:
-                    solver = [args["solver"]] + args["opts"].split() + [cnf_file_name + ".cnf"]
+                    solver = [args["solver"], "-o", cnf_file_name + ".cnf"]
                     subprocess.run(solver, timeout=args["timeout"])
                 except subprocess.TimeoutExpired:
                     os.remove(cnf_file_name + ".cnf")
@@ -78,36 +78,56 @@ if __name__ == "__main__":
                     b_max = b
                     break
 
-                os.remove(cnf_file_name + ".cnf")
                 os.remove(cnf_file_name + ".out")
 
                 # read stats from csv: [0] t_read, [1] n, [2] m, [3] l, [4] t_solve, [5] n_threads, [6] n_iterations
-                stats = np.genfromtxt(cnf_file_name + ".csv", delimiter=",",
-                                      dtype=[float, int, int, int, float, int, int])
-                stats = np.atleast_1d(stats)
+                stats_serial = np.genfromtxt(cnf_file_name + ".csv", delimiter=",",
+                                             dtype=[float, int, int, int, float, int, int])
+                stats_serial = np.atleast_1d(stats_serial)
                 os.remove(cnf_file_name + ".csv")
 
-                if args["iterations"] < stats[0][6]:
+                try:
+                    solver = [args["solver"], "-o", "-p", str(args["threads"]), cnf_file_name + ".cnf"]
+                    subprocess.run(solver, timeout=args["timeout"])
+                except subprocess.TimeoutExpired:
+                    os.remove(cnf_file_name + ".cnf")
+                    os.remove(cnf_file_name + ".csv")
+                    os.remove(cnf_file_name + ".out")
+
+                    b_max = b
+                    break
+
+                os.remove(cnf_file_name + ".out")
+
+                # read stats from csv: [0] t_read, [1] n, [2] m, [3] l, [4] t_solve, [5] n_threads, [6] n_iterations
+                stats_parallel = np.genfromtxt(cnf_file_name + ".csv", delimiter=",",
+                                             dtype=[float, int, int, int, float, int, int])
+                stats_parallel = np.atleast_1d(stats_parallel)
+                os.remove(cnf_file_name + ".csv")
+
+                os.remove(cnf_file_name + ".cnf")
+
+                if args["iterations"] < stats_serial[0][6] or args["iterations"] < stats_parallel[0][6]:
                     b_max = b
                     break
 
                 n_executions = n_executions + 1
                 mTotal = mTotal + n_clauses
-                tTotal = tTotal + stats[0][4]
-                iTotal = iTotal + stats[0][6]
+                tsTotal = tsTotal + stats_serial[0][4]
+                tpTotal = tpTotal + stats_parallel[0][4]
 
             if b_max == 0:
                 b_arr.append(1 - b)
-                t_arr.append(tTotal / n_executions)
+                ts_arr.append(tsTotal / n_executions)
+                tp_arr.append(tpTotal / n_executions)
                 m_arr.append(math.floor(mTotal / n_executions))
-                i_arr.append(iTotal / n_executions)
             else:
                 break
 
-        csv_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
+        csv_name = args["dir"] + "parallel_analysis_n" + str(args["vars"]) + "_k" + str(k) + ".csv"
         with open(csv_name, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerows([b_arr, t_arr, m_arr, i_arr])
+            writer.writerows([b_arr, ts_arr, tp_arr,  m_arr])
 
         if b_max != 0:
             E = 1 - b_max
@@ -120,18 +140,17 @@ if __name__ == "__main__":
         fig.set_canvas(plt.gcf().canvas)
         fig.suptitle(ttl)
 
-        ax.plot(m_arr, i_arr, 'r', label='Empirical data')
-        ax.plot(m_arr, i_arr, 'r+')
-
-        upperBound = np.multiply((np.e / (2**k - (k*np.e))),  m_arr)
-        ax.plot(m_arr, upperBound, 'b', label="$i(m) = \dfrac{em}{2^k - ke}$")
+        ax.plot(m_arr, ts_arr, 'r+', label='Sequential ALLL')
+        ax.plot(m_arr, ts_arr, 'r')
+        ax.plot(m_arr, tp_arr, 'b+', label='Parallel ALLL')
+        ax.plot(m_arr, tp_arr, 'b')
 
         ax.legend()
         ax.set_xlabel('$m$' + " (clauses)")
-        ax.set_ylabel('$i$' + " (iterations)")
+        ax.set_ylabel('$t$' + " (milliseconds)")
 
         fig.set_size_inches(9, 6)
         plt.tight_layout()
 
-        pdf_name = args["dir"] + "analysis_n" + str(args["vars"]) + "_k" + str(k)
+        pdf_name = args["dir"] + "parallel_analysis_n" + str(args["vars"]) + "_k" + str(k)
         fig.savefig(pdf_name + ".pdf", format='pdf', bbox_inches='tight')
