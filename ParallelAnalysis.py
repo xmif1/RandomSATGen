@@ -8,7 +8,6 @@ import csv
 import math
 import time
 import random
-import datetime
 import argparse
 import subprocess
 
@@ -17,7 +16,7 @@ ap.add_argument("-n", "--vars", required=True, type=int, help="The maximum numbe
 ap.add_argument("-km", "--k-min", required=True, type=int, help="The minimum value of k.")
 ap.add_argument("-kM", "--k-max", required=True, type=int, help="The maximum value of k.")
 ap.add_argument("-kS", "--k-step", required=False, type=int, help="Step between min and max values of k.", default=1)
-ap.add_argument("-i", "--iterations", required=True, type=int, help="The maximum number of iterations.")
+ap.add_argument("-i", "--iterations", required=True, type=int, help="The maximum number of sequential solve iterations.")
 ap.add_argument("-c", "--cutoff", required=False, type=int, help="The maximum number of clause generation resamples.",
                 default=10000)
 ap.add_argument("-N", "--samples", required=False, type=int,
