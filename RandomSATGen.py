@@ -61,13 +61,14 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
         os.remove(cnf_file_name + ".csv")
         os.remove(cnf_file_name + ".out")
 
-    # read stats from csv: [0] t_read, [1] n, [2] m, [3] l, [4] t_solve, [5] n_threads, [6] n_iterations
-    stats = np.genfromtxt(cnf_file_name + ".csv", delimiter=",",
-                                 dtype=[float, int, int, int, float, int, int])
-    stats = np.atleast_1d(stats)
+    if solved:
+        # read stats from csv: [0] t_read, [1] n, [2] m, [3] l, [4] t_solve, [5] n_threads, [6] n_iterations
+        stats = np.genfromtxt(cnf_file_name + ".csv", delimiter=",",
+                                     dtype=[float, int, int, int, float, int, int])
+        stats = np.atleast_1d(stats)
 
-    tD = stats[4]  # extract solve time
-    notif_counter = notif_counter + tD  # update counter in between solves
+        tD = stats[0][4]  # extract solve time
+        notif_counter = notif_counter + tD  # update counter in between solves
 
     if args["email"] != "":  # if email notifications requested
         if solved:  # update email body with new SAT instance statistics if solved
