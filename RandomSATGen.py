@@ -42,7 +42,7 @@ iii.          clauses : randomly generated clauses representing SAT instances
   v. file_name_suffix : optional argument providing suffix to name of file persisted to disk
 """
 def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
-    # Convert to DIMACS formate and persis to disk
+    # Convert to DIMACS format and persist to disk
     print("Writing SAT instance to file...")
     cnf_file_name = to_dimacs_cnf(clauses, n_vars, args["dir"], file_name_suffix)
 
@@ -51,7 +51,7 @@ def run_instance(notif_counter, TEXT, clauses, n_vars, file_name_suffix=""):
     solved = False
 
     print("Running SAT instance...")
-    try: # Attempt to solve; if timeout, a TimeoutExpired exception is thrown
+    try:  # Attempt to solve; if timeout, a TimeoutExpired exception is thrown
         solver = [args["solver"]] + args["opts"].split() + [cnf_file_name + ".cnf"]
         subprocess.run(solver, timeout=(args["timeout"] * 60))
         solved = True
